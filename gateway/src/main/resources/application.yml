@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          
+      routes:
+        - id: api-auth
+          uri: lb://api-auth
+          predicates:
+            - Path=/api/api-auth/public/**
+          filters:
+            - StripPrefix=2
+            - RewritePath=/api/api-auth/public/(?<segment>.*), /$\{segment}
+
+        - id: api-auth
+          uri: lb://api-auth
+          predicates:
+            - Path=/api/api-auth/user/**
+          filters:
+            - name: UsuarioAuthorizationFilter 
+            - StripPrefix=2
+            - RewritePath=/api/api-auth/user/(?<segment>.*), /$\{segment}
+
+        - id: api-transaction
+          uri: lb://api-transaction
+          predicates:
+            - Path=/api/api-transaction/user/**
+          filters:
+            - name: UsuarioAuthorizationFilter 
+            - StripPrefix=2
+            - RewritePath=/api/api-transaction/user/(?<segment>.*), /$\{segment}
+
+
+
+ 
