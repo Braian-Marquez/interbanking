@@ -26,7 +26,6 @@ EXPOSE 8081
 
 # Define las variables de entorno necesarias
 ENV CONFIG_EUREKA=registry-discovery \
-    CONFIG_SERVER=server-config \
     JAVA_OPTS="-Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true"
 
 # Ejecuta el microservicio
