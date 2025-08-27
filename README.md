@@ -1,22 +1,22 @@
 # interbanking
-# 📌 API REST con Microservicios, Spring Boot y JWT
+# 📌 API REST con Microservicios, Arquitectura Hexagonal y JWT
 
-Esta API permite gestionar usuarios y posts mediante una arquitectura de **microservicios**, con autenticación basada en **JWT** y control de acceso. Se utiliza **Consul** para el registro de servicios y **Spring Cloud Gateway** como puerta de enlace de la API.  
+Esta API permite gestionar usuarios y transacciones mediante una **arquitectura de microservicios** basada en **arquitectura hexagonal**, con autenticación basada en **JWT** y control de acceso. Se utiliza **Eureka Server** para el registro de servicios y **Spring Cloud Gateway** como puerta de enlace de la API.
 
 ## 🚀 Tecnologías Utilizadas
 
 - **Java 17**
-- **Spring Boot 3.1.2**
+- **Spring Boot 3.2.8**
+- **Arquitectura Hexagonal** (Clean Architecture)
 - **Spring Security + JWT** (Autenticación)
 - **Spring Cloud Gateway** (Gestión de tráfico y seguridad)
-- **Spring Cloud Consul** (Registro y descubrimiento de servicios)
+- **Eureka Server** (Registro y descubrimiento de servicios)
 - **JPA + Hibernate** (Persistencia)
 - **PostgreSQL** (Base de datos)
 - **Lombok** (Para reducir código boilerplate)
-- **Docker & Portainer** (Gestión de contenedores)
-- **Hostinger** (Infraestructura en la nube)
-- **Nginx** (Proxy inverso)
-- **Postman** (Pruebas y documentación)
+- **JUnit 5 + Mockito** (Testing unitario)
+- **OpenAPI 3 (Swagger)** (Documentación de APIs)
+- **Docker** (Gestión de contenedores)
 
 ---
 ## 📂Documentacion de Postman
@@ -24,15 +24,23 @@ https://documenter.getpostman.com/view/21902697/2sB34ZrjZ8
 
 ## 📂 Arquitectura del Proyecto
 
-Este sistema sigue un enfoque basado en **microservicios**, donde cada módulo cumple una función específica.
+Este sistema sigue un enfoque basado en **microservicios** con **arquitectura hexagonal**, donde cada módulo cumple una función específica y mantiene una separación clara entre la lógica de negocio y la infraestructura.
 
 ```plaintext
-├── api-gateway (Spring Cloud Gateway)
-├── api-auth (Gestión de autenticación y JWT)
-├── api-transaction (Gestión de Transacciones)
-├── Consul (Registro de servicios y configuración dinámica)
-└── Nginx (Proxy inverso)
+├── gateway (Spring Cloud Gateway)
+├── autentication (Gestión de autenticación y JWT con Arquitectura Hexagonal)
+├── transaction (Gestión de Transacciones con Arquitectura Hexagonal)
+├── eureka (Registro y descubrimiento de servicios)
+└── commons (Entidades y utilidades compartidas)
 ```
+
+### 🏗️ Arquitectura Hexagonal
+
+Cada microservicio está estructurado siguiendo los principios de la arquitectura hexagonal:
+
+- **Domain**: Contiene la lógica de negocio pura y los puertos (interfaces)
+- **Application**: Casos de uso y servicios de aplicación
+- **Infrastructure**: Adaptadores para bases de datos, APIs externas y configuración
 
 ## 🔄 Pasos para Iniciar el Proyecto
 
@@ -51,103 +59,9 @@ git clone <URL_DEL_REPO>
 cd <NOMBRE_DEL_PROYECTO>
 ```
 
-## 1️⃣ Levantar Consul
-Consul se ejecuta en el puerto 8500.
-Se debe crear una red en Docker llamada app-network
+## 1️⃣ Configurar los servicios de infraestructura
 
-```bash
-docker network create app-network
-```
-
-Iniciar Consul con Docker desde la consola
-
-```bash
-docker run -d --name=consul `
-  --network=app-network `
-  -p 8500:8500 `
-  -p 8600:8600/udp `
-  -e CONSUL_BIND_INTERFACE=eth0 `
-  hashicorp/consul:latest agent -server -bootstrap-expect=1 --client 0.0.0.0 --ui
-
-```
-O a traves de un docker-compose.yml o un stack en Portainer
-
-```yaml
-services:
-  consul:
-    image: hashicorp/consul:latest
-    container_name: consul
-    command: agent -server -bootstrap-expect=1 -client=0.0.0.0 -ui
-    ports:
-      - "8500:8500"
-      - "8600:8600/udp"
-    environment:
-      - CONSUL_BIND_INTERFACE=eth0
-    volumes:
-      - consul-data:/consul/data
-    networks:
-      - app-network
-
-volumes:
-  consul-data:
-    driver: local
-
-networks:
-  app-network:
-    external: true
-```
-## 2️⃣ Agregar la Configuración en Consul
-Para que los servicios api-auth y api-transaction obtengan su configuración desde Consul, debes crear las claves en el KV Store.
-
-## 📌 Registrar Configuración en Consul en Windows
-Ejecuta los siguientes comandos para registrar la configuración en Consul KV:
-Constatar de que en consul el formato de los arhivos que se crean sean YAML
-### Aclaracion las credenciales de base de datos puestas son solo un ejemplo.
-```yaml
-$yamlConfig = @"
-spring:
-  application:
-    name: api-auth  
-  datasource:
-    url: jdbc:postgresql://52.207.27.199:5432/prueba_tecnica
-    username: postgres
-    password: Pa55w0rd
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: update
-auth:
-  security:
-    SECRET_KEY: "6B32794D4F6A396A5231552A58356B744C687654527A5670336B397839274D"
-"@
-
-Invoke-RestMethod -Uri "http://localhost:8500/v1/kv/config/api-auth/data" -Method Put -Body $yamlConfig -ContentType "text/plain"
-
-```
-
-```yaml
-$yamlConfig = @"
-spring:
-  application:
-    name: api-transaction  
-  datasource:
-    url: jdbc:postgresql://52.207.27.199:5432/prueba_tecnica
-    username: postgres
-    password: Pa55w0rd
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: update
-auth:
-  security:
-    SECRET_KEY: "6B32794D4F6A396A5231552A58356B744C687654527A5670336B397839274D"
-"@
-
-Invoke-RestMethod -Uri "http://localhost:8500/v1/kv/config/api-transaction/data" -Method Put -Body $yamlConfig -ContentType "text/plain"
-
-```
+Los archivos de configuración para cada servicio ya están incluidos en sus respectivos directorios `src/main/resources/`.
 
 ## 🚀 Levantar Microservicios 
 
@@ -157,75 +71,84 @@ git clone https://github.com/Braian-Marquez/interbanking
 ### 1️⃣ Construir el servicio **commons**  
 Antes de iniciar los microservicios, es necesario compilar y construir el módulo **commons**, ya que proporciona recursos compartidos para los demás servicios.  
 
-Ejecuta el siguiente comando dentro del directorio del microservicio **commons**:  
-
 ```bash
+cd commons
 mvn clean install
 ```
-Levantar el API Gateway
 
+### 2️⃣ Iniciar servicios en orden
+
+⚠️ **IMPORTANTE**: Los servicios deben iniciarse en el siguiente orden para garantizar el correcto funcionamiento del sistema:
+
+**1. Eureka Server:**
 ```bash
-cd gateway
+cd eureka
 ./mvnw spring-boot:run
 ```
-Levantar api-auth
+*Espera a que Eureka esté completamente iniciado antes de continuar*
 
+**2. Gateway:**
 ```bash
-cd ../api-auth
+cd ../gateway
 ./mvnw spring-boot:run
 ```
-Levantar api-transaction
+*Espera a que el Gateway se registre en Eureka*
 
+**3. Authentication Service:**
 ```bash
-cd ../api-transaction
+cd ../autentication
 ./mvnw spring-boot:run
 ```
 
-## 2️⃣ Levantar los Microservicios - Docker (Estos pasos no son necesarios para correr el proyecto mas que nada es a nivel informativo de como esta funcionando actualmente la arquitectura)
-
-```yaml
-services:
-
-  api-auth:
-    image: braianm95/api-auth
-    container_name: api-auth
-    ports:
-      - "8081:8081"
-    environment:
-      - CONSUL_HOST=consul
-      - CONSUL_PORT=8500
-    depends_on:
-      - api-gateway
-    networks:
-      - app-network
-
-  api-transaction:
-    image: braianm95/api-transaction
-    container_name: api-transaction
-    ports:
-      - "8082:8082"
-    environment:
-      - CONSUL_HOST=consul
-      - CONSUL_PORT=8500
-      - SPRING_APPLICATION_NAME=api-transaction
-    depends_on:
-      - api-gateway
-    networks:
-      - app-network
-      
-  api-gateway:
-    image: braianm95/api-gateway
-    container_name: api-gateway
-    ports:
-      - "8080:8080"
-    environment:
-      - CONSUL_HOST=consul
-      - CONSUL_PORT=8500
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    external: true
+**4. Transaction Service:**
+```bash
+cd ../transaction
+./mvnw spring-boot:run
 ```
+
+## 📋 Puertos de los Servicios
+
+- **Eureka Server**: http://localhost:8761
+- **Gateway**: http://localhost:8080
+- **Authentication Service**: http://localhost:8081
+- **Transaction Service**: http://localhost:8082
+
+## 📚 Documentación de APIs (Swagger)
+
+Una vez que todos los servicios estén ejecutándose, puedes acceder a la documentación interactiva de las APIs:
+
+🌐 **Panel Principal de Swagger**: http://localhost:8080
+
+Desde el gateway podrás acceder a:
+- **Authentication API**: Endpoints para registro, login y gestión de usuarios
+- **Transaction API**: Endpoints para gestión de empresas y transferencias
+
+La documentación incluye ejemplos de requests, respuestas y permite probar los endpoints directamente desde el navegador.
+
+## 🧪 Testing
+
+El proyecto incluye **testing unitario** para todos los servicios principales:
+
+### Ejecutar tests del servicio Authentication:
+```bash
+cd autentication
+./mvnw test
+```
+
+### Ejecutar tests del servicio Transaction:
+```bash
+cd transaction
+./mvnw test
+```
+
+Los tests incluyen:
+- **UserServiceTest**: Tests unitarios para funcionalidades de autenticación
+- **TransactionServiceTest**: Tests unitarios para operaciones de transferencias
+
+## 🔧 Configuración
+
+La configuración de cada servicio se maneja mediante:
+- **Archivos locales**: `application.properties` en cada servicio
+- **Eureka**: Para el registro automático de servicios
+- **Arquitectura Hexagonal**: Separación clara entre capas de dominio, aplicación e infraestructura
 

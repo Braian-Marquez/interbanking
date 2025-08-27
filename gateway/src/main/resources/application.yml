@@ -1,42 +1,102 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    region: sa-east-1
+    service-url:
+      defaultZone: http://${CONFIG_EUREKA:localhost}:8761/eureka
+
 spring:
+  main:
+    web-application-type: reactive
   application:
-    name: gateway-service
+    name: api-gateway
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.reactive.ReactiveManagementWebSecurityAutoConfiguration
+
+
   cloud:
-    consul:
-      host: ${CONSUL_HOST:localhost}
-      port: ${CONSUL_PORT:8500}
     gateway:
-      discovery:
-        locator:
-          enabled: true
+      globalcors:
+         add-to-simple-url-handler-mapping: true
+         corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: ['*']
+            allowedMethods:
+            - POST
+            - GET  
+            - PUT
+            - DELETE
+            - OPTION
+            - OPTIONS
+            - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
+            exposedHeaders: ["Authorization", "Content-Type"]
+            maxAge: 3600
           
       routes:
         - id: api-auth
           uri: lb://api-auth
           predicates:
-            - Path=/api/api-auth/public/**
+            - Path=/api/auth/public/**
+          order: 1
           filters:
             - StripPrefix=2
-            - RewritePath=/api/api-auth/public/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/auth/public/(?<segment>.*), /$\{segment}
 
         - id: api-auth
           uri: lb://api-auth
           predicates:
-            - Path=/api/api-auth/user/**
+            - Path=/api/auth/user/**
+          order: 1
           filters:
             - name: UsuarioAuthorizationFilter 
             - StripPrefix=2
-            - RewritePath=/api/api-auth/user/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/auth/user/(?<segment>.*), /$\{segment}
 
         - id: api-transaction
           uri: lb://api-transaction
           predicates:
-            - Path=/api/api-transaction/user/**
+            - Path=/api/transaction/user/**
+          order: 1
           filters:
             - name: UsuarioAuthorizationFilter 
             - StripPrefix=2
-            - RewritePath=/api/api-transaction/user/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/transaction/user/(?<segment>.*), /$\{segment}
+        
+        - id: swagger-api-auth
+          uri: lb://api-auth
+          order: 0
+          predicates:
+            - Path=/api/auth/public/v3/api-docs
+          filters:
+            - RewritePath=/api/auth/public/(?<segment>.*), /$\{segment}
+
+        - id: swagger-api-transaction
+          uri: lb://api-transaction
+          order: 0
+          predicates:
+            - Path=/api/transaction/v3/api-docs
+          filters:
+            - RewritePath=/api/transaction/(?<segment>.*), /$\{segment}
 
 
 
  
+springdoc:
+  version: '@springdoc.version@'
+  swagger-ui:
+    use-root-path: true
+    urls:
+      - name: Modulo Autenticacion
+        url: /api/auth/public/v3/api-docs
+
+
+      - name: Modulo Transaccion
+        url: /api/transaction/v3/api-docs
